@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Plex Ad Detector",
+  "version": "1.0.0",
+  "description": "Detects Plex Live TV ad breaks by watching Wurl segment URLs.",
+  "permissions": ["webRequest", "tabs", "storage"],
+  "host_permissions": [
+    "*://*.plex.wurl.tv/*",
+    "*://*.mediatailor.amazonaws.com/*",
+    "https://app.plex.tv/*"
+  ],
+  "background": { "service_worker": "sw.js" },
+  "action": { "default_title": "Plex Ad Detector" },
+  "content_scripts": [
+    {
+      "matches": ["https://app.plex.tv/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
