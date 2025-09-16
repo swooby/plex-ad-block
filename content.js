@@ -1,7 +1,46 @@
+let speechEnabled = true;
+const speechPrefPromise = new Promise((resolve) => {
+  if (chrome?.storage?.local?.get) {
+    try {
+      chrome.storage.local.get({ speechEnabled: true }, (res) => {
+        if (chrome.runtime?.lastError) {
+          console.warn('Failed to load speech setting', chrome.runtime.lastError);
+        } else if (res) {
+          speechEnabled = res.speechEnabled !== false;
+        }
+        resolve();
+      });
+    } catch (err) {
+      console.warn('Failed to load speech setting', err);
+      resolve();
+    }
+  } else {
+    resolve();
+  }
+});
+
+if (chrome?.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes?.speechEnabled) {
+      speechEnabled = changes.speechEnabled.newValue !== false;
+    }
+  });
+}
 
 // ---- Speech (your function, with small safety tweaks) ----
-function speak(text, clear) {
+async function speak(text, clear) {
+  await speechPrefPromise;
+
   const speechSynthesis = window.speechSynthesis;
+
+  if (!speechEnabled) {
+    if (clear && speechSynthesis) {
+      try { speechSynthesis.cancel(); } catch {}
+    }
+    console.log('Speech disabled; skipping speak()', text);
+    return;
+  }
+
   if (!speechSynthesis) {
     console.warn('Speech synthesis not supported in this browser');
     return;
