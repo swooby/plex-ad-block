@@ -80,11 +80,13 @@ function ensureTabState(tabId) {
       breakStart: null,
       dedupe: new Set(),
       progDedupe: new Set(),
+      bumperDedupe: new Set(),
       adSegmentsSeen: 0,
       programSegmentsSeen: 0,
       firstAdUrl: null,
       programModeAdCount: 0,
       adModeProgramCount: 0,
+      adModeBumperCount: 0,
       lastSeen: Date.now(),
     });
   }
@@ -148,18 +150,24 @@ chrome.webRequest.onBeforeRequest.addListener(
             s.breakStart = now;
             s.programSegmentsSeen = 0;
             s.adModeProgramCount = 0;
+            s.adModeBumperCount = 0;
             s.progDedupe.clear();
+            s.bumperDedupe.clear();
             debugLog('AD_MODE_ENTER', { tabId, url: s.firstAdUrl || url, adSegments: s.adSegmentsSeen });
             maybeNotify(tabId, 'AD_START', { at: s.breakStart, url: s.firstAdUrl || url });
           }
         } else {
           s.programSegmentsSeen = 0;
           s.adModeProgramCount = 0;
+          s.adModeBumperCount = 0;
           s.progDedupe.clear();
+          s.bumperDedupe.clear();
         }
       } else if (s.mode === 'AD') {
         s.programSegmentsSeen = 0;
         s.adModeProgramCount = 0;
+        s.adModeBumperCount = 0;
+        s.bumperDedupe.clear();
       }
 
       debugLog('AD_URL', {
@@ -177,9 +185,21 @@ chrome.webRequest.onBeforeRequest.addListener(
     const progAnyMatch    = !progFullMatch && !progBumperMatch && isMatch(url, RE.PROG_ANY);
 
     if (progBumperMatch) {
-      // Ignore bumpers/time fillers for state changes
-      debugLog('PROG_BUMPER', { tabId, url });
-      maybeNotify(tabId, "PROG_BUMPER", { at: now, url });
+      debugLog('PROG_BUMPER', { tabId, url, mode: s.mode });
+
+      if (s.mode === 'AD') {
+        const key = url;
+        const isNewBumper = !s.bumperDedupe.has(key);
+        if (isNewBumper) {
+          s.bumperDedupe.add(key);
+          const index = s.adModeBumperCount;
+          debugLog('AD_MODE_PROGRAM_BUMPER', { tabId, url, index });
+          maybeNotify(tabId, 'AD_MODE_PROGRAM_BUMPER', { at: now, url, index });
+          s.adModeBumperCount += 1;
+        }
+      } else {
+        maybeNotify(tabId, 'PROG_BUMPER', { at: now, url });
+      }
       return;
     }
 
@@ -208,15 +228,18 @@ chrome.webRequest.onBeforeRequest.addListener(
             s.breakStart = null;
             s.dedupe.clear();
             s.progDedupe.clear();
+            s.bumperDedupe.clear();
             s.adSegmentsSeen = 0;
             s.programSegmentsSeen = 0;
             s.firstAdUrl = null;
             s.programModeAdCount = 0;
             s.adModeProgramCount = 0;
+            s.adModeBumperCount = 0;
           }
         }
       } else {
         s.progDedupe.clear();
+        s.bumperDedupe.clear();
         s.programSegmentsSeen = 0;
         if (s.dedupe.size || s.adSegmentsSeen) {
           s.dedupe.clear();
@@ -225,6 +248,7 @@ chrome.webRequest.onBeforeRequest.addListener(
         s.firstAdUrl = null;
         s.programModeAdCount = 0;
         s.adModeProgramCount = 0;
+        s.adModeBumperCount = 0;
         maybeNotify(tabId, 'PROGRAM', { url });
       }
       return;

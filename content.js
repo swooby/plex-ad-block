@@ -207,6 +207,11 @@ async function speak(text, clear) {
         speak('Program bumper detected', false);
         break;
       }
+      case 'AD_MODE_PROGRAM_BUMPER': {
+        const index = Number.isFinite(msg.index) ? msg.index : 0;
+        speak(`Program bumper ${index}`, false);
+        break;
+      }
       case 'AD_MODE_PROGRAM_SEGMENT': {
         const index = Number.isFinite(msg.index) ? msg.index : 0;
         speak(`Program segment ${index}`, false);
