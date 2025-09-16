@@ -19,6 +19,105 @@ const speechPrefPromise = new Promise((resolve) => {
   }
 });
 
+const MEDIA_ELEMENT_SELECTOR = 'video.HTMLMedia-mediaElement-u17S9P';
+const VOLUME_ATTENUATION_LEVEL = 0.05;
+const MEDIA_WAIT_RETRY_DELAY_MS = 250;
+const MEDIA_WAIT_MAX_ATTEMPTS = 20;
+
+let savedMediaVolume = null;
+let savedMediaElement = null;
+
+function findMediaElement() {
+  return document.querySelector(MEDIA_ELEMENT_SELECTOR);
+}
+
+function waitForMediaElement(attempt = 0) {
+  return new Promise((resolve) => {
+    const media = findMediaElement();
+    if (media) {
+      resolve(media);
+      return;
+    }
+    if (attempt >= MEDIA_WAIT_MAX_ATTEMPTS) {
+      resolve(null);
+      return;
+    }
+    setTimeout(() => {
+      waitForMediaElement(attempt + 1).then(resolve);
+    }, MEDIA_WAIT_RETRY_DELAY_MS);
+  });
+}
+
+function clampVolume(volume) {
+  if (!Number.isFinite(volume)) {
+    return null;
+  }
+  if (volume < 0) {
+    return 0;
+  }
+  if (volume > 1) {
+    return 1;
+  }
+  return volume;
+}
+
+async function saveVolumeAndAttenuate() {
+  const media = await waitForMediaElement();
+  if (!media) {
+    console.warn('Media element for volume attenuation not found');
+    return;
+  }
+
+  const currentVolume = clampVolume(media.volume);
+  if (currentVolume === null) {
+    console.warn('Unable to determine current media volume', media.volume);
+    return;
+  }
+
+  if (savedMediaVolume === null || savedMediaElement !== media) {
+    savedMediaElement = media;
+    savedMediaVolume = currentVolume;
+  }
+
+  const targetVolume = clampVolume(Math.min(currentVolume, VOLUME_ATTENUATION_LEVEL));
+  if (targetVolume !== null && media.volume !== targetVolume) {
+    try {
+      media.volume = targetVolume;
+    } catch (error) {
+      console.warn('Failed to attenuate media volume', error);
+    }
+  }
+}
+
+async function restoreSavedVolume() {
+  if (savedMediaVolume === null) {
+    return;
+  }
+
+  const media = (savedMediaElement && document.contains(savedMediaElement))
+    ? savedMediaElement
+    : await waitForMediaElement();
+
+  if (!media) {
+    console.warn('Media element for volume restoration not found');
+    savedMediaElement = null;
+    savedMediaVolume = null;
+    return;
+  }
+
+  const volumeToRestore = clampVolume(savedMediaVolume);
+  if (volumeToRestore !== null) {
+    try {
+      media.volume = volumeToRestore;
+    } catch (error) {
+      console.warn('Failed to restore media volume', error);
+    }
+  }
+
+  savedMediaElement = null;
+  savedMediaVolume = null;
+}
+
 if (chrome?.storage?.onChanged) {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes?.speechEnabled) {
@@ -94,11 +193,13 @@ async function speak(text, clear) {
         // Playback actually entered ad mode (after buffer delay)
         speak('Ad mode engaged', true);
         show("Ad break ▶");
+        saveVolumeAndAttenuate();
         break;
       }
       case "AD_END": {
         speak('Program mode resumed', true);
         show(`Show resumed • ${(msg.durationMs/1000).toFixed(1)}s ads`);
+        restoreSavedVolume();
         break;
       }
       case 'PROG_BUMPER': {
