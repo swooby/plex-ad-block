@@ -150,6 +150,7 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
 
 chrome.webRequest.onBeforeRequest.addListener(
   (details) => {
+    const now = Date.now();
     const { tabId = -1, url, type, method, initiator } = details;
     if (tabId < 0) return;
 
@@ -157,11 +158,11 @@ chrome.webRequest.onBeforeRequest.addListener(
     //debugLog('URL', { tabId, type, method, initiator, url });
 
     const s = ensureTabState(tabId);
-    s.lastSeen = Date.now();
+    s.lastSeen = now;
 
     // 2) MediaTailor (optional breadcrumb)
     if (RE.MEDIATAILOR.test(url)) {
-      s._lastMT = Date.now();
+      s._lastMT = now;
       debugLog('MEDIATAILOR', { tabId, url });
       return;
     }
@@ -169,7 +170,6 @@ chrome.webRequest.onBeforeRequest.addListener(
     // 3) --- AD segments ---
     const adMatch = isMatch(url, RE.AD);
     if (adMatch) {
-      const now = Date.now();
       const creative = adMatch[1] || null;
       const segIdxStr = adMatch[3] || null;
       const segIdx = segIdxStr ? parseInt(segIdxStr, 10) : NaN;
@@ -228,7 +228,7 @@ chrome.webRequest.onBeforeRequest.addListener(
       const scheduled = scheduleAt(s, 'adStart', due, () => {
         if (s.mode !== 'AD') {
           s.mode = 'AD';
-          s.breakStart = Date.now();
+          s.breakStart = now;
           debugLog('AD_START_TIMER_FIRED', {
             tabId, url: s._firstAdUrl || url,
             segMs: s._adSegMs, leadSegs: s._leadStartSegs
@@ -256,7 +256,6 @@ chrome.webRequest.onBeforeRequest.addListener(
     }
 
     if (progFullMatch) {
-      const now = Date.now();
       s.lastProgAt = now;
       debugLog('PROG_FULLSHOW', { tabId, url });
 
@@ -277,7 +276,7 @@ chrome.webRequest.onBeforeRequest.addListener(
 
         const scheduled = scheduleAt(s, 'adEnd', due, () => {
           if (s.mode === 'AD') {
-            const at = Date.now();
+            const at = now;
             const durationMs = s.breakStart ? at - s.breakStart : 0;
             const segments = s.dedupe.size;
             debugLog('AD_END_TIMER_FIRED', { tabId, at, durationMs, segments, segMs, leadSegs: s._leadEndSegs });
