@@ -83,8 +83,8 @@ function ensureTabState(tabId) {
       adSegmentsSeen: 0,
       programSegmentsSeen: 0,
       firstAdUrl: null,
-      adSegmentNotified: false,
-      programSegmentNotified: false,
+      programModeAdCount: 0,
+      adModeProgramCount: 0,
       lastSeen: Date.now(),
     });
   }
@@ -136,31 +136,30 @@ chrome.webRequest.onBeforeRequest.addListener(
         s.dedupe.add(key);
         s.adSegmentsSeen = s.dedupe.size;
         if (!s.firstAdUrl) s.firstAdUrl = url;
-
-        if (!s.adSegmentNotified) {
-          s.adSegmentNotified = true;
-          maybeNotify(tabId, "AD_SEGMENT_DETECTED", { at: now, url });
-        }
-
         if (s.mode !== 'AD') {
+          const index = s.programModeAdCount;
+          debugLog('PROGRAM_MODE_AD_SEGMENT', { tabId, url, index });
+          maybeNotify(tabId, 'PROGRAM_MODE_AD_SEGMENT', { at: now, url, index });
+          s.programModeAdCount += 1;
+
           debugLog('AD_SEGMENT_COUNT', { tabId, url, adSegmentsSeen: s.adSegmentsSeen, required: AD_SEGMENTS_REQUIRED });
           if (s.adSegmentsSeen >= AD_SEGMENTS_REQUIRED) {
             s.mode = 'AD';
             s.breakStart = now;
             s.programSegmentsSeen = 0;
-            s.programSegmentNotified = false;
+            s.adModeProgramCount = 0;
             s.progDedupe.clear();
             debugLog('AD_MODE_ENTER', { tabId, url: s.firstAdUrl || url, adSegments: s.adSegmentsSeen });
             maybeNotify(tabId, 'AD_START', { at: s.breakStart, url: s.firstAdUrl || url });
           }
         } else {
           s.programSegmentsSeen = 0;
-          s.programSegmentNotified = false;
+          s.adModeProgramCount = 0;
           s.progDedupe.clear();
         }
       } else if (s.mode === 'AD') {
         s.programSegmentsSeen = 0;
-        s.programSegmentNotified = false;
+        s.adModeProgramCount = 0;
       }
 
       debugLog('AD_URL', {
@@ -193,13 +192,11 @@ chrome.webRequest.onBeforeRequest.addListener(
         if (isNewProgSegment) {
           s.progDedupe.add(url);
           s.programSegmentsSeen += 1;
+          const index = s.adModeProgramCount;
+          debugLog('AD_MODE_PROGRAM_SEGMENT', { tabId, url, index });
+          maybeNotify(tabId, 'AD_MODE_PROGRAM_SEGMENT', { at: now, url, index });
+          s.adModeProgramCount += 1;
           debugLog('PROG_SEGMENT_COUNT', { tabId, url, programSegmentsSeen: s.programSegmentsSeen, required: PROGRAM_SEGMENTS_REQUIRED });
-
-          if (!s.programSegmentNotified) {
-            s.programSegmentNotified = true;
-            maybeNotify(tabId, 'PROG_SEGMENT_DETECTED', { at: now, url });
-          }
-
           if (s.programSegmentsSeen >= PROGRAM_SEGMENTS_REQUIRED) {
             const at = now;
             const durationMs = s.breakStart ? at - s.breakStart : 0;
@@ -214,20 +211,20 @@ chrome.webRequest.onBeforeRequest.addListener(
             s.adSegmentsSeen = 0;
             s.programSegmentsSeen = 0;
             s.firstAdUrl = null;
-            s.adSegmentNotified = false;
-            s.programSegmentNotified = false;
+            s.programModeAdCount = 0;
+            s.adModeProgramCount = 0;
           }
         }
       } else {
         s.progDedupe.clear();
         s.programSegmentsSeen = 0;
-        s.programSegmentNotified = false;
         if (s.dedupe.size || s.adSegmentsSeen) {
           s.dedupe.clear();
           s.adSegmentsSeen = 0;
         }
         s.firstAdUrl = null;
-        s.adSegmentNotified = false;
+        s.programModeAdCount = 0;
+        s.adModeProgramCount = 0;
         maybeNotify(tabId, 'PROGRAM', { url });
       }
       return;

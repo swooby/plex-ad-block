@@ -184,9 +184,9 @@ async function speak(text, clear) {
   chrome.runtime.onMessage.addListener((msg) => {
     console.log('onMessage: msg', msg);
     switch (msg?.type) {
-      case 'AD_SEGMENT_DETECTED': {
-        // First ad segment fetched; playback will switch soon
-        speak('Ad segment detected', false);
+      case 'PROGRAM_MODE_AD_SEGMENT': {
+        const index = Number.isFinite(msg.index) ? msg.index : 0;
+        speak(`Ad segment ${index}`, false);
         break;
       }
       case "AD_START": {
@@ -207,9 +207,9 @@ async function speak(text, clear) {
         speak('Program bumper detected', false);
         break;
       }
-      case 'PROG_SEGMENT_DETECTED': {
-        // First program segment fetched during an ad; resume soon
-        speak('Program segment detected', false);
+      case 'AD_MODE_PROGRAM_SEGMENT': {
+        const index = Number.isFinite(msg.index) ? msg.index : 0;
+        speak(`Program segment ${index}`, false);
         break;
       }
       case "PROGRAM": {
