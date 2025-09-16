@@ -251,6 +251,7 @@ chrome.webRequest.onBeforeRequest.addListener(
     if (progBumperMatch) {
       // Ignore bumpers/time fillers for state changes
       debugLog('PROG_BUMPER', { tabId, url });
+      maybeNotify(tabId, "PROG_BUMPER", { at: now, url });
       return;
     }
 

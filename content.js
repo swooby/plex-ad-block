@@ -62,6 +62,11 @@ function speak(text, clear) {
         show(`Show resumed • ${(msg.durationMs/1000).toFixed(1)}s ads`);
         break;
       }
+      case 'PROG_BUMPER': {
+        // A short bumper/time filler clip; ignore
+        speak('Program bumper detected', false);
+        break;
+      }
       case 'PROG_SEGMENT_DETECTED': {
         // First program segment fetched during an ad; resume soon
         speak('Program segment detected', false);
