@@ -5,6 +5,7 @@ const els = {
   togglePw: document.getElementById('togglePw'),
   save: document.getElementById('save'),
   test: document.getElementById('test'),
+  speech: document.getElementById('speechEnabled'),
   status: document.getElementById('status'),
 };
 
@@ -15,11 +16,12 @@ function showStatus(ok, msg) {
 }
 
 async function load() {
-  const { obsConfig } = await chrome.storage.local.get('obsConfig');
+  const { obsConfig, speechEnabled } = await chrome.storage.local.get({ obsConfig: null, speechEnabled: true });
   const cfg = Object.assign({ host: 'localhost', port: 4455, password: '' }, obsConfig || {});
   els.host.value = cfg.host;
   els.port.value = cfg.port;
   els.password.value = cfg.password || '';
+  if (els.speech) els.speech.checked = speechEnabled !== false;
 
   // Init toggle
   els.password.type = 'password';
@@ -34,7 +36,8 @@ async function save() {
     port: Number(els.port.value || 4455),
     password: els.password.value || ''
   };
-  await chrome.storage.local.set({ obsConfig });
+  const speechEnabled = els.speech ? !!els.speech.checked : true;
+  await chrome.storage.local.set({ obsConfig, speechEnabled });
   showStatus(true, 'Saved.');
 }
 
