@@ -1,0 +1,85 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Plex Ad Detector — OBS</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { color-scheme: light dark; }
+    html, body { width: 420px; margin: 0; padding: 0; }
+    body { font: 14px/1.4 system-ui, sans-serif; padding: 14px; }
+    h1 { font-size: 16px; margin: 0 0 10px; }
+    fieldset { border: 1px solid #8883; border-radius: 12px; padding: 12px; margin: 12px 0; }
+    legend { padding: 0 6px; opacity: .8; }
+    label { display:block; margin: 10px 0 6px; font-weight:600; }
+    input[type=text], input[type=number], input[type=password], input[type="text"].pw-plain {
+      width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #8886; box-sizing: border-box;
+    }
+    .row { display:grid; grid-template-columns: 1fr 120px; gap:12px; align-items:end; }
+    .hint { opacity:.7; font-size:12px; }
+    .btns { display:flex; gap:10px; margin-top: 10px; }
+    button { padding:8px 12px; border-radius:10px; border:1px solid #8886; background:transparent; cursor:pointer; }
+    #status { margin-top: 10px; padding:10px 12px; border-radius:8px; display:none; }
+    #status.ok { background:#1d6; color:#fff; display:block; }
+    #status.err { background:#d33; color:#fff; display:block; }
+    .inline { display:inline-flex; gap:10px; align-items:center; }
+    .tight { margin-top: 2px; }
+
+    /* Password toggle */
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 86px; }
+    .pw-toggle {
+      position: absolute; top: 50%; right: 6px; transform: translateY(-50%);
+      padding: 6px 10px; border-radius: 8px; font-size: 12px; line-height: 1;
+      border: 1px solid #8886; background: transparent; cursor: pointer;
+    }
+
+    /* Make the popup compact and scrollable if needed */
+    .scroller { max-height: 520px; overflow:auto; padding-right: 2px; }
+  </style>
+</head>
+<body>
+  <div class="scroller">
+    <h1>OBS WebSocket Settings</h1>
+
+    <form id="form">
+      <fieldset>
+        <legend>Server</legend>
+        <div class="row">
+          <div>
+            <label for="host">Host</label>
+            <input id="host" type="text" placeholder="localhost" />
+            <div class="hint tight">e.g. <code>localhost</code> or <code>192.168.1.50</code></div>
+          </div>
+          <div>
+            <label for="port">Port</label>
+            <input id="port" type="number" min="1" max="65535" placeholder="4455" />
+            <div class="hint tight">Default: 4455</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Authentication</legend>
+        <label for="password">Server Password</label>
+        <div class="pw-wrap">
+          <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+          <button id="togglePw" class="pw-toggle" type="button" aria-label="Show password" aria-pressed="false">Show</button>
+        </div>
+        <div class="hint tight">Matches OBS “Tools → WebSocket Server Settings → Server Password”.</div>
+      </fieldset>
+
+      <div class="btns">
+        <button id="save" type="button">Save</button>
+        <button id="test" type="button">Test connection</button>
+      </div>
+
+      <div id="status"></div>
+
+      <button id="dumpLogsBtn">Dump logs to console</button>
+    </form>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
